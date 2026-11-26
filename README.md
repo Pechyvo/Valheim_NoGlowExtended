@@ -18,7 +18,7 @@ Each item shows the controls it supports. The mod is aimed at persistent visuals
 | --- | --- |
 | **Deep North** | Thunderblood and Frostfire weapon variants, Northern Vengeance, Spirit Caller, Intricate Key |
 | **Ashlands** | Blood, Lightning, and Nature weapon variants, Dyrnwyn, Dundr, Trollstav, Staff of the Wild |
-| **Mistlands** | Mistwalker, Himminafl, Jotun Bane, Spinesnap, Skull Splittur, staves, Feather Cape |
+| **Mistlands** | Mistwalker, Himminafl, Jotun Bane, Spinesnap, Skull Splittur, staffs, Feather Cape |
 | **Earlier biomes** | Frostner, Draugr Fang, Crystal Battleaxe, Porcupine, Dragon Egg, Dragon Tear, Surtling Core, Ancient Seed |
 | **Plants and crafting stations** | Thistle, Yellow Mushroom, Jotun Puffs, Magecap, Artisan Table, Galdr Table |
 
@@ -27,9 +27,9 @@ The complete list is in the config, grouped by biome and item type. This release
 ## Installation
 
 - **Required:** [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/) and [Jötunn](https://thunderstore.io/c/valheim/p/ValheimModding/Jotunn/).
-- **Optional:** [ConfigurationManager by shudnal](https://thunderstore.io/c/valheim/p/shudnal/ConfigurationManager/) for in-game settings.
+- **Recommended:** [ConfigurationManager by shudnal](https://thunderstore.io/c/valheim/p/shudnal/ConfigurationManager/) for in-game settings.
 
-Install with your mod manager and launch Valheim modded. If you already use A2 No Glow, disable it before enabling this fork.
+Install with your mod manager and launch Valheim modded. If you already use [A2 No Glow](https://thunderstore.io/c/valheim/p/A2/No_Glow/), disable it before enabling this fork.
 
 ## Configuration
 
@@ -43,11 +43,7 @@ Re-equip gear or pick up and re-drop an item after changing its settings. Suppor
 
 For items without a dedicated row, enable **Advanced** in ConfigurationManager and open **Custom Prefabs**. Each field takes a comma-separated list of prefab IDs. Dedicated item settings take precedence.
 
-### Known limitation
-
-Some effects are created separately or use custom shaders. **Dead Raiser** can still show a pink glow around the skull.
-
 ## Source and credits
 
 - [No Glow Expanded source on GitHub](https://github.com/Pechyvo/Valheim_NoGlowExtended)
-- Based on [A2 No Glow](https://thunderstore.io/c/valheim/p/A2/No_Glow/) v1.2.3. Original code and icon design by **A2 Valheim Mods**. The original MIT license is included.
+- Based on [A2 No Glow](https://thunderstore.io/c/valheim/p/A2/No_Glow/) v1.2.3. Original code and icon design by **[A2 Valheim Mods](https://thunderstore.io/c/valheim/p/A2/)**. The original [MIT license](https://github.com/Pechyvo/Valheim_NoGlowExtended/blob/main/LICENSE.md) is included.
