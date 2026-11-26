@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+.dotnet/
+.roslyn/
+.sdk-state/
+*.user
+*.dll
+*.pdb
+*.zip
+*.cfg
+NoGlowEffectAudit-*.txt

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>12</LangVersion>
+    <Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Version>1.0.24</Version>
+    <ManagedDir>$(ValheimPath)\valheim_Data\Managed</ManagedDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(DiagnosticBuild)' == 'true'">
+    <AssemblyName>NoGlowEffectAudit</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(DiagnosticBuild)' != 'true'">
+    <Compile Include="PluginInfo.cs;upstream\Plugin.cs;upstream\NoGlowExpanded.cs" />
+    <Compile Include="upstream\ValheimArmoryIntegration.cs" Condition="'$(IncludeArmoryPrototype)' == 'true'" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(DiagnosticBuild)' == 'true'">
+    <Compile Include="diagnostics\EffectAudit.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="$(ManagedDir)\UnityEngine*.dll;$(ManagedDir)\assembly_valheim.dll;$(ManagedDir)\assembly_utils.dll;$(ManagedDir)\assembly_guiutils.dll;$(ManagedDir)\gui_framework.dll" Private="false" />
+    <Reference Include="BepInEx" HintPath="$(BepInExCore)\BepInEx.dll" Private="false" />
+    <Reference Include="0Harmony" HintPath="$(BepInExCore)\0Harmony.dll" Private="false" />
+    <Reference Include="Jotunn" HintPath="$(JotunnDll)" Private="false" />
+  </ItemGroup>
+  <Target Name="CheckGameReferences" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="'$(ValheimPath)' == '' Or !Exists('$(ManagedDir)\assembly_valheim.dll')" Text="Set ValheimPath to the Valheim install folder." />
+    <Error Condition="!Exists('$(BepInExCore)\BepInEx.dll') Or !Exists('$(BepInExCore)\0Harmony.dll')" Text="Set BepInExCore to the BepInEx core directory." />
+    <Error Condition="!Exists('$(JotunnDll)')" Text="Set JotunnDll to the full path to Jotunn.dll." />
+  </Target>
+</Project>

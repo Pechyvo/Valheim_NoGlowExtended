@@ -1,0 +1,10 @@
+{
+  "name": "No_Glow_Expanded",
+  "version_number": "1.0.24",
+  "website_url": "https://github.com/Pechyvo/Valheim_NoGlowExtended",
+  "description": "Client-side controls for world light, particles, and material glow on supported Valheim gear, items, plants, and crafting stations.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2360",
+    "ValheimModding-Jotunn-2.30.2"
+  ]
+}
