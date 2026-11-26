@@ -22,7 +22,7 @@ Each item shows the controls it supports. The mod is aimed at persistent visuals
 | **Earlier biomes** | Frostner, Draugr Fang, Crystal Battleaxe, Porcupine, Dragon Egg, Dragon Tear, Surtling Core, Ancient Seed |
 | **Plants and crafting stations** | Thistle, Yellow Mushroom, Jotun Puffs, Magecap, Artisan Table, Galdr Table |
 
-The complete list is in the config, grouped by biome and item type. This release covers vanilla items. Dedicated ValheimArmory support is planned separately.
+The complete list is in the config, grouped by biome and item type.
 
 ## Installation
 
@@ -39,9 +39,17 @@ Press **F1 → No Glow Expanded** in ConfigurationManager. Set your preferences 
 - **Keep original effects** restores the item’s original visuals.
 - **Custom** lets you choose effects individually. For example, enable **Suppress world light** and leave **Hide particles** off to keep a weapon’s sparks.
 
+**Hide Forge of Potential glow** is off by default. It controls the vanilla refinement glow separately from the item’s own effects and works without ValheimArmory.
+
 Re-equip gear or pick up and re-drop an item after changing its settings. Supported world objects can update in place. Without ConfigurationManager, close the game and edit `BepInEx/config/NoGlowExpanded.cfg` in your mod profile after the first launch.
 
 For items without a dedicated row, enable **Advanced** in ConfigurationManager and open **Custom Prefabs**. Each field takes a comma-separated list of prefab IDs. Dedicated item settings take precedence.
+
+## ValheimArmory
+
+No Glow Expanded includes optional support for [ValheimArmory by MidnightMods](https://thunderstore.io/c/valheim/p/MidnightMods/ValheimArmory/). With Armory installed, load into a world and open **F1 → No Glow Expanded - ValheimArmory**. Settings are grouped by biome and weapon type and use the main mod’s **Defaults**. Per-item overrides are saved in `BepInEx/config/NoGlowExpanded.ValheimArmory.cfg`.
+
+Only gear with a detected supported effect gets a row. To see why a prefab was skipped, enable **Advanced** and set **Debug and Tests → Logging level** to **Verbose** before loading into a world.
 
 ## Source and credits
 

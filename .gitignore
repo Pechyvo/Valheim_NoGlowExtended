@@ -10,3 +10,4 @@ obj/
 *.zip
 *.cfg
 NoGlowEffectAudit-*.txt
+NoGlowExpanded.local.props

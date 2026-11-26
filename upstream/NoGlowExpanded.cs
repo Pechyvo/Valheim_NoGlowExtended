@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
 using Jotunn.Managers;
 using UnityEngine;
 
-namespace A2.NoGlow
+namespace Pechyvo.NoGlowExpanded
 {
     internal static class NoGlowExpanded
     {
@@ -17,6 +18,13 @@ namespace A2.NoGlow
         private static ConfigEntry<bool> _defaultLights = null!;
         private static ConfigEntry<bool> _defaultParticles = null!;
         private static ConfigEntry<bool> _defaultEmission = null!;
+        private static ConfigEntry<bool>? _hideForgeGlow;
+        private const string ForgeGlowName = "UpgraderGlow";
+        private static readonly HashSet<GameObject> HiddenForgeGlows = new();
+        private enum DiagnosticLevel { Off, Basic, Verbose }
+        private static ConfigEntry<DiagnosticLevel>? _loggingLevel;
+        internal static bool BasicLoggingEnabled => _loggingLevel?.Value is DiagnosticLevel.Basic or DiagnosticLevel.Verbose;
+        internal static bool VerboseLoggingEnabled => _loggingLevel?.Value == DiagnosticLevel.Verbose;
         private const string DyrnwynPrefab = "SwordDyrnwyn";
         private const string LegacyDyrnwynPrefab = "SwordIronFire";
         private static readonly Dictionary<Renderer, Material[]> OriginalMaterials = new();
@@ -74,13 +82,18 @@ namespace A2.NoGlow
             ("MeadEitrMinor", "mead_eitr_minor", "Minor Eitr Mead", "Mistlands - Consumables"),
             ("MeadStaminaLingering", "mead_stamina_lingering", "Lingering Stamina Mead", "Mistlands - Consumables")
         };
-        private static bool HasParticleControl(string prefab) => prefab != "MaceNeedle" && prefab != JotunPuffs
+        private static bool HasParticleControl(string prefab) => ArmoryEffects.TryGetValue(prefab, out var armory) ? armory.Particles
+            : prefab != "MaceNeedle" && prefab != JotunPuffs
             && prefab is not ("AncientSeed" or "DragonEgg" or "SurtlingCore" or "BattleaxeSkullSplittur")
             && !WorldEmissionRenderers.ContainsKey(prefab)
             && !prefab.StartsWith("Mead", StringComparison.Ordinal);
-        private static bool HasLightControl(string prefab) => !LightlessGear.Contains(prefab);
+        private static bool HasLightControl(string prefab) => ArmoryEffects.TryGetValue(prefab, out var armory) ? armory.Light
+            : !LightlessGear.Contains(prefab);
         private static bool _prefabsReady;
         private static readonly Dictionary<string, ConfigEntry<EffectChoice>> GearChoices = new();
+        private static readonly Dictionary<string, (bool Light, bool Particles)> ArmoryEffects = new(StringComparer.Ordinal);
+        private const string DualDyrnwynPrefab = "VADual_SwordDyrnwyn";
+        private const string DyrnwynBladeMaterial = "Dyrnwyn_mat";
 
         private enum EffectChoice
         {
@@ -113,6 +126,9 @@ namespace A2.NoGlow
                 "Hide attached particle visuals for gear set to Use defaults.");
             _defaultEmission = config.Bind("Defaults", "Suppress material glow", true,
                 "Suppress verified emissive materials for gear set to Use defaults.");
+            _hideForgeGlow = config.Bind("Defaults", "Hide Forge of Potential glow", false,
+                "Hide the glow added by Forge of Potential refinement. This setting applies independently of each item's effect settings.");
+            _hideForgeGlow.SettingChanged += (_, _) => RefreshForgeGlow();
             foreach (var item in EarlierGear)
             {
                 if (item.Category != "Mistlands - Consumables")
@@ -141,6 +157,9 @@ namespace A2.NoGlow
             BindVariants(config, "Sledge", "Sledge", "mace2h");
             BindVariants(config, "Spear", "Spear", "spear");
             BindVariants(config, "THSword", "Greatsword", "sword2h");
+            _loggingLevel = config.Bind("Debug and Tests", "Logging level", DiagnosticLevel.Off,
+                new ConfigDescription("Off hides diagnostics. Basic shows registration totals. Verbose adds per-item effect counts and skip reasons. Warnings and errors are always logged.",
+                    null, new ConfigurationManagerAttributes { IsAdvanced = true, Order = 100 }));
             BindGear(config, "SwordCheat", "SwordCheat", "", "Cheat Sword", "Debug and Tests", advanced: true,
                 defaultChoice: EffectChoice.KeepOriginalEffects);
             _lights = config.Bind(Section, "DisableLights", "", new ConfigDescription(
@@ -234,15 +253,30 @@ namespace A2.NoGlow
             BindGear(config, frostfire, frostfire, $"$item_{tokenFamily}_{frostfireToken}", $"Frostfire {weaponName}", "Deep North - Frostfire");
         }
 
-        internal static void RegisterArmoryGear(ConfigFile config, string prefab, string token, string fallbackName, string biome)
+        internal enum ArmoryRegistration { Added, AlreadyRegistered, NoSupportedEffects }
+
+        internal static ArmoryRegistration RegisterArmoryGear(ConfigFile config, string prefab, GameObject root, string token, string fallbackName, string category, string weaponType)
         {
-            if (!GearChoices.ContainsKey(prefab))
-                BindGear(config, prefab, prefab, token, fallbackName, biome);
+            if (GearChoices.ContainsKey(prefab)) return ArmoryRegistration.AlreadyRegistered;
+            var light = Array.Exists(root.GetComponentsInChildren<Light>(true), component => IsAttachedArmoryEffect(component, root))
+                || Array.Exists(root.GetComponentsInChildren<ParticleSystem>(true),
+                    component => component.lights.enabled && IsAttachedArmoryEffect(component, root));
+            var particles = Array.Exists(root.GetComponentsInChildren<ParticleSystemRenderer>(true),
+                component => IsAttachedArmoryEffect(component, root));
+            if (!light && !particles) return ArmoryRegistration.NoSupportedEffects;
+
+            ArmoryEffects.Add(prefab, (light, particles));
+            BindGear(config, prefab, prefab, token, fallbackName, category, sortFamily: weaponType);
+            return ArmoryRegistration.Added;
+        }
+
+        internal static void RefreshRegisteredGear()
+        {
             if (_prefabsReady) Apply();
         }
 
         private static void BindGear(ConfigFile config, string prefab, string key, string token, string fallbackName,
-            string category, bool advanced = false, EffectChoice defaultChoice = EffectChoice.UseDefaults)
+            string category, bool advanced = false, EffectChoice defaultChoice = EffectChoice.UseDefaults, string? sortFamily = null)
         {
             var open = false;
             var localized = token.Length == 0 ? null : Localization.instance?.Localize(token);
@@ -258,9 +292,10 @@ namespace A2.NoGlow
                     DispName = displayName,
                     Category = category,
                     IsAdvanced = advanced,
-                    Order = WeaponOrder(prefab),
+                    Order = WeaponOrder(sortFamily ?? prefab),
                     CustomDrawer = setting => DrawGearChoice((ConfigEntry<EffectChoice>)setting, ref open,
-                        EmissionRenderers.ContainsKey(prefab) || WorldEmissionRenderers.ContainsKey(prefab), HasLightControl(prefab), HasParticleControl(prefab))
+                        EmissionRenderers.ContainsKey(prefab) || WorldEmissionRenderers.ContainsKey(prefab) || prefab == DualDyrnwynPrefab,
+                        HasLightControl(prefab), HasParticleControl(prefab))
                 }));
             GearChoices.Add(prefab, entry);
             entry.SettingChanged += OnSettingChanged;
@@ -364,6 +399,19 @@ namespace A2.NoGlow
                 SuppressEmission(rule.Key, rule.Value);
                 if (rule.Key == DyrnwynPrefab) SuppressEmission(LegacyDyrnwynPrefab, "Viking_Sword (1)");
             }
+            if (GearChoices.TryGetValue(DualDyrnwynPrefab, out var dualDyrnwyn)
+                && (HasEffect(dualDyrnwyn.Value, EffectChoice.SuppressMaterialGlow)
+                    || (dualDyrnwyn.Value == EffectChoice.UseDefaults && _defaultEmission.Value)))
+            {
+                var prefab = GetGear(DualDyrnwynPrefab);
+                if (prefab != null)
+                {
+                    var before = OriginalMaterials.Count;
+                    SuppressEmission(prefab, DualDyrnwynPrefab, null, DyrnwynBladeMaterial);
+                    if (VerboseLoggingEnabled)
+                        _logger.LogInfo($"Dual Dyrnwyn: suppressed material glow on {OriginalMaterials.Count - before} renderer(s).");
+                }
+            }
             foreach (var name in lightNames)
             {
                 var prefab = GetGear(name);
@@ -371,34 +419,33 @@ namespace A2.NoGlow
                 var controllersChanged = 0;
                 foreach (var controller in prefab.GetComponentsInChildren<LightLod>(true))
                 {
-                    if (IsPickupOrUpgradeEffect(controller, prefab)) continue;
+                    if (!IsGearEffect(name, controller, prefab)) continue;
                     if (DisableLightController(controller)) controllersChanged++;
                 }
                 foreach (var controller in prefab.GetComponentsInChildren<LightFlicker>(true))
                 {
-                    if (IsPickupOrUpgradeEffect(controller, prefab)) continue;
+                    if (!IsGearEffect(name, controller, prefab)) continue;
                     if (DisableLightController(controller)) controllersChanged++;
                 }
                 var changed = 0;
                 foreach (var light in prefab.GetComponentsInChildren<Light>(true))
                 {
-                    if (IsPickupOrUpgradeEffect(light, prefab)) continue;
+                    if (!IsGearEffect(name, light, prefab)) continue;
                     if (!light.enabled || !DisabledLights.Add(light)) continue;
                     light.enabled = false;
                     changed++;
                 }
-                _logger.LogInfo($"Extra gear effects: disabled {changed} enabled light(s) on '{name}'.");
-                _logger.LogInfo($"Extra gear effects: disabled {controllersChanged} light controller(s) on '{name}'.");
                 var particleLightsChanged = 0;
                 foreach (var particles in prefab.GetComponentsInChildren<ParticleSystem>(true))
                 {
-                    if (IsPickupOrUpgradeEffect(particles, prefab)) continue;
+                    if (!IsGearEffect(name, particles, prefab)) continue;
                     var lights = particles.lights;
                     if (!lights.enabled || !DisabledParticleLights.Add(particles)) continue;
                     lights.enabled = false;
                     particleLightsChanged++;
                 }
-                _logger.LogInfo($"Extra gear effects: disabled {particleLightsChanged} particle light module(s) on '{name}'.");
+                if (VerboseLoggingEnabled)
+                    _logger.LogInfo($"'{name}': disabled {changed} light(s), {controllersChanged} light controller(s), and {particleLightsChanged} particle light module(s).");
             }
 
             foreach (var name in particleNames)
@@ -408,17 +455,74 @@ namespace A2.NoGlow
                 var changed = 0;
                 foreach (var renderer in prefab.GetComponentsInChildren<ParticleSystemRenderer>(true))
                 {
-                    if (IsPickupOrUpgradeEffect(renderer, prefab)) continue;
+                    if (!IsGearEffect(name, renderer, prefab)) continue;
                     if (name == "DragonTear" && renderer.name is not ("flare" or "smoke_expl" or "pixel flakes")) continue;
                     if (name is "CryptKey" or "BloodGoldKey" && renderer.gameObject == prefab) continue;
                     if (!renderer.enabled || !DisabledParticles.Add(renderer)) continue;
                     renderer.enabled = false;
                     changed++;
                 }
-                _logger.LogInfo($"Extra gear effects: hid {changed} enabled particle renderer(s) on '{name}'.");
+                if (VerboseLoggingEnabled)
+                    _logger.LogInfo($"'{name}': hid {changed} particle renderer(s).");
             }
             foreach (var transform in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
                 ApplyWorldEffects(transform.gameObject);
+                if (_hideForgeGlow?.Value == true) HideForgeGlow(transform);
+            }
+        }
+
+        private static void RefreshForgeGlow()
+        {
+            if (_hideForgeGlow?.Value != true)
+            {
+                RestoreForgeGlow();
+                return;
+            }
+            foreach (var transform in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                HideForgeGlow(transform);
+        }
+
+        private static void HideForgeGlow(Transform node)
+        {
+            if (!IsForgeGlow(node) || !node.gameObject.activeSelf) return;
+            HiddenForgeGlows.RemoveWhere(glow => glow == null);
+            HiddenForgeGlows.Add(node.gameObject);
+            node.gameObject.SetActive(false);
+        }
+
+        private static bool IsForgeGlow(Transform node)
+            => node.name.Equals(ForgeGlowName, StringComparison.OrdinalIgnoreCase)
+                || node.name.Equals(ForgeGlowName + "(Clone)", StringComparison.OrdinalIgnoreCase);
+
+        private static void RestoreForgeGlow()
+        {
+            foreach (var glow in HiddenForgeGlows)
+            {
+                if (glow != null) glow.SetActive(true);
+            }
+            HiddenForgeGlows.Clear();
+        }
+
+        private static void HideAttachedForgeGlow(GameObject root)
+        {
+            if (_hideForgeGlow?.Value != true) return;
+            foreach (var node in root.GetComponentsInChildren<Transform>(true))
+                HideForgeGlow(node);
+        }
+
+        [HarmonyPatch]
+        private static class HideEquippedForgeGlow
+        {
+            private static IEnumerable<MethodBase> TargetMethods()
+            {
+                foreach (var method in AccessTools.GetDeclaredMethods(typeof(VisEquipment)))
+                {
+                    if (method.Name is "AttachItem" or "AttachArmor") yield return method;
+                }
+            }
+
+            private static void Postfix(VisEquipment __instance) => HideAttachedForgeGlow(__instance.gameObject);
         }
 
         [HarmonyPatch(typeof(ZNetView), "Awake")]
@@ -428,8 +532,10 @@ namespace A2.NoGlow
 
             private static void Postfix(ZNetView __instance)
             {
-                if (_prefabsReady && __instance.gameObject.scene.IsValid())
-                    ApplyWorldEffects(__instance.gameObject);
+                if (!_prefabsReady || !__instance.gameObject.scene.IsValid()) return;
+                ApplyWorldEffects(__instance.gameObject);
+                if (_hideForgeGlow?.Value == true && __instance.TryGetComponent<ItemDrop>(out _))
+                    HideAttachedForgeGlow(__instance.gameObject);
             }
         }
 
@@ -500,12 +606,13 @@ namespace A2.NoGlow
             if (prefab != null) SuppressEmission(prefab, prefabName, rendererName);
         }
 
-        private static void SuppressEmission(GameObject prefab, string prefabName, string? rendererName)
+        private static void SuppressEmission(GameObject prefab, string prefabName, string? rendererName, string? materialName = null)
         {
             foreach (var renderer in prefab.GetComponentsInChildren<Renderer>(true))
             {
                 if (rendererName != null && !renderer.name.Equals(rendererName, StringComparison.OrdinalIgnoreCase)) continue;
                 if (rendererName == null && (renderer is ParticleSystemRenderer || IsPickupOrUpgradeEffect(renderer, prefab))) continue;
+                if (materialName != null && !IsAttachedArmoryEffect(renderer, prefab)) continue;
                 if (OriginalMaterials.ContainsKey(renderer)) continue;
                 var originals = renderer.sharedMaterials;
                 var replacements = (Material[])originals.Clone();
@@ -514,6 +621,8 @@ namespace A2.NoGlow
                 {
                     var material = originals[i];
                     if (material == null) continue;
+                    if (materialName != null && !material.name.Equals(materialName, StringComparison.OrdinalIgnoreCase)
+                        && !material.name.Equals(materialName + " (Instance)", StringComparison.OrdinalIgnoreCase)) continue;
                     var keyword = material.IsKeywordEnabled("_EMISSION");
                     var skullEmission = prefabName == "StaffSkeleton" && material.name.StartsWith("SkeletonItem_mat", StringComparison.Ordinal)
                         && material.HasProperty("_EmissionColor");
@@ -522,7 +631,8 @@ namespace A2.NoGlow
                         && material.HasProperty("_EmissionColor");
                     var customCreature = rendererName == null && material.shader != null && material.shader.name == "Custom/Creature"
                         && material.HasProperty("_EmissionColor") && material.GetColor("_EmissionColor").maxColorComponent > 0f;
-                    if (!keyword && !skullEmission && !axeEmission && !customCreature) continue;
+                    if (!keyword && !skullEmission && !axeEmission && !customCreature
+                        && !(materialName != null && material.HasProperty("_EmissionColor"))) continue;
                     if (!MutedMaterials.TryGetValue(material, out var muted))
                     {
                         muted = new Material(material);
@@ -544,8 +654,22 @@ namespace A2.NoGlow
             for (var node = component.transform; node != null && node != prefab.transform; node = node.parent)
             {
                 if (node.name.Equals("fx_ItemSparkles", StringComparison.OrdinalIgnoreCase)
-                    || node.name.Equals("UpgraderGlow", StringComparison.OrdinalIgnoreCase))
+                    || IsForgeGlow(node))
                     return true;
+            }
+            return false;
+        }
+
+        private static bool IsGearEffect(string name, Component effect, GameObject root)
+            => ArmoryEffects.ContainsKey(name) ? IsAttachedArmoryEffect(effect, root) : !IsPickupOrUpgradeEffect(effect, root);
+
+        private static bool IsAttachedArmoryEffect(Component effect, GameObject root)
+        {
+            if (IsPickupOrUpgradeEffect(effect, root)) return false;
+            for (var node = effect.transform; node != null && node != root.transform; node = node.parent)
+            {
+                if (node.parent == root.transform)
+                    return node.name is "attach" or "attach_back" or "attach_skin";
             }
             return false;
         }
@@ -584,6 +708,7 @@ namespace A2.NoGlow
         internal static void Shutdown()
         {
             _prefabsReady = false;
+            RestoreForgeGlow();
             Restore();
             foreach (var material in MutedMaterials.Values) UnityEngine.Object.Destroy(material);
             MutedMaterials.Clear();
@@ -609,6 +734,11 @@ namespace A2.NoGlow
 
         private static GameObject? GetGear(string name)
         {
+            if (ArmoryEffects.ContainsKey(name))
+            {
+                var item = ObjectDB.instance?.GetItemPrefab(name);
+                if (item != null && item.GetComponent<ItemDrop>() != null) return item;
+            }
             var prefab = PrefabManager.Instance.GetPrefab(name);
             if (prefab != null && prefab.GetComponent<ItemDrop>() != null) return prefab;
             prefab = ObjectDB.instance?.GetItemPrefab(name);

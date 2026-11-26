@@ -1,5 +1,61 @@
 # Changelog
 
+## 1.1.0
+
+- Added optional ValheimArmory support. Supported gear appears in its own ConfigurationManager section, grouped by biome and weapon type.
+- Added **Hide Forge of Potential glow** under **Defaults**. It is off by default and controls vanilla refinement glow separately from the item’s original effects.
+- Added Off, Basic, and Verbose logging levels. Verbose includes the reason a ValheimArmory candidate was skipped.
+
+## 1.0.35 (Forge glow test)
+
+- Added an opt-in setting under Defaults to hide Forge of Potential refinement glow independently of each item's original effects.
+
+## 1.0.34 (ValheimArmory test)
+
+- Added optional ValheimArmory integration to the standard build. Compatible gear appears in a separate ConfigurationManager section, organized by biome and weapon type.
+- Completed the ValheimArmory candidate list against the published weapon, shield, and tool catalog. The mod checks the attached models at runtime and adds settings for supported effects.
+- Added advanced Off, Basic, and Verbose logging levels for troubleshooting. Verbose includes the reason each ValheimArmory candidate was skipped.
+
+## 1.0.33 (ValheimArmory test)
+
+- Expanded the ValheimArmory candidate list with more Antler and Vine weapons, Dragonfrost shields, Assassin's Knives, Soulstealer, and elemental Nord dual axes.
+
+## 1.0.32 (ValheimArmory test)
+
+- Added Off, Basic, and Verbose logging levels. Verbose reports why a ValheimArmory candidate was skipped.
+
+## 1.0.31 (ValheimArmory test)
+
+- Put per-item effect counts and ValheimArmory registration summaries behind an advanced Debug logging setting, off by default.
+
+## 1.0.30 (ValheimArmory test)
+
+- Added more candidates from ValheimArmory's Bonerot, Dragonfrost, Goblin King, Carapace, Dreadfire, Assassin's, and Thunderblood families.
+- Gives each registered candidate effect controls only when the model has matching attached components.
+
+## 1.0.29 (ValheimArmory test)
+
+- Added a separate material glow control for both blades of Dual Dyrnwyn.
+
+## 1.0.28 (ValheimArmory test)
+
+- Matched the vanilla menu's weapons, staves, and elemental sections while retaining existing ValheimArmory config keys.
+
+## 1.0.27 (ValheimArmory test)
+
+- Added more ValheimArmory candidates across the biome list, including dual boss weapons, blood bows, Frostfire Daggers, and staves.
+- Candidates show settings when the registered model has attached lights or particle renderers.
+
+## 1.0.26 (ValheimArmory test)
+
+- Added thirteen boss-themed ValheimArmory weapons, including the first Meadows, Black Forest, and Swamp entries.
+- Applied the same weapon-type ordering as the vanilla menu within each ValheimArmory biome.
+
+## 1.0.25 (ValheimArmory test)
+
+- Expanded the optional ValheimArmory integration to thirteen audited dual-wield weapons.
+- Grouped ValheimArmory settings by biome in their own ConfigurationManager entry and preserved pickup and upgrade cues.
+
 ## 1.0.24
 
 - First public vanilla release. Includes per-item world-light, particle, and material-glow controls, biome-based settings, and live changes after re-equipping.

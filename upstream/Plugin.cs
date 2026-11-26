@@ -5,7 +5,7 @@ using Jotunn.Utils;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace A2.NoGlow
+namespace Pechyvo.NoGlowExpanded
 {
     [BepInPlugin(PluginInfo.PluginGUID, PluginInfo.PluginName, PluginInfo.PluginSemanticVersion)]
     [BepInDependency(Jotunn.Main.ModGuid, BepInDependency.DependencyFlags.HardDependency)]
