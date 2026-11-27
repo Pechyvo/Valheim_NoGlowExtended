@@ -51,6 +51,12 @@ No Glow Expanded includes optional support for [ValheimArmory by MidnightMods](h
 
 Only gear with a detected supported effect gets a row. To see why a prefab was skipped, enable **Advanced** and set **Debug and Tests → Logging level** to **Verbose** before loading into a world.
 
+## Bug reports and suggestions
+
+Found an effect that still shows, or want support for another item? [Open a GitHub issue](https://github.com/Pechyvo/Valheim_NoGlowExtended/issues).
+
+For bug reports, include the in-game item name, your Valheim and No Glow Expanded versions, and whether the effect appears when the item is equipped or dropped. A screenshot or relevant BepInEx log excerpt helps if you have one.
+
 ## Source and credits
 
 - [No Glow Expanded source on GitHub](https://github.com/Pechyvo/Valheim_NoGlowExtended)
